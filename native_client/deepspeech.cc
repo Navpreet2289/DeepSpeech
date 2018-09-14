@@ -323,14 +323,11 @@ ModelState::infer(const float* aMfcc, unsigned int n_frames, vector<float>& logi
     return;
 #endif // DS_NATIVE_MODEL
   } else {
-    Tensor input(DT_FLOAT, TensorShape({BATCH_SIZE, n_steps, mfcc_feats_per_timestep}));
+    Tensor input(DT_FLOAT, TensorShape({BATCH_SIZE, n_steps, 2*n_context+1, MFCC_FEATURES}));
 
-    auto input_mapped = input.tensor<float, 3>();
-    int idx = 0;
-    for (int i = 0; i < n_frames; i++) {
-      for (int j = 0; j < mfcc_feats_per_timestep; j++, idx++) {
-        input_mapped(0, i, j) = aMfcc[idx];
-      }
+    auto input_mapped = input.flat<float>();
+    for (int i = 0; i < n_frames*mfcc_feats_per_timestep; i++) {
+      input_mapped(i) = aMfcc[i];
     }
 
     Tensor input_lengths(DT_INT32, TensorShape({1}));
@@ -482,7 +479,7 @@ DS_CreateModel(const char* aModelPath,
     if (node.name() == "input_node") {
       const auto& shape = node.attr().at("shape").shape();
       model->n_steps = shape.dim(1).size();
-      model->mfcc_feats_per_timestep = shape.dim(2).size();
+      model->mfcc_feats_per_timestep = shape.dim(2).size() * shape.dim(3).size();
       // mfcc_features_per_timestep = MFCC_FEATURES * ((2*n_context) + 1)
       model->n_context = (model->mfcc_feats_per_timestep - MFCC_FEATURES) / (2 * MFCC_FEATURES);
     } else if (node.name() == "logits_shape") {
